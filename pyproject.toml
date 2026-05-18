@@ -1,0 +1,57 @@
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["apps/api"]
+
+[tool.ruff.lint]
+select = [
+  "E", "F", "W",    # pyflakes / pycodestyle
+  "I",              # isort
+  "B",              # bugbear
+  "UP",             # pyupgrade
+  "S",              # bandit
+  "RUF",            # ruff
+  "ASYNC",          # asyncio
+]
+ignore = [
+  "S101",  # assert in tests is fine
+]
+
+[tool.ruff.lint.per-file-ignores]
+"apps/api/tests/**" = ["S101", "S106"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_configs = true
+warn_return_any = true
+namespace_packages = true
+explicit_package_bases = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["apps/api/tests"]
+asyncio_mode = "auto"
+addopts = [
+  "-ra",
+  "--strict-markers",
+  "--strict-config",
+  "--tb=short",
+]
+markers = [
+  "unit: fast, in-memory unit tests",
+  "integration: tests that hit Postgres/Redis/MinIO via testcontainers",
+  "e2e: slow tests touching the live stack",
+  "security: targeted security regressions",
+]

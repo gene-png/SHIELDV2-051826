@@ -1,0 +1,60 @@
+{
+  "realm": "shield",
+  "enabled": true,
+  "sslRequired": "external",
+  "displayName": "SHIELD by Kentro",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "rememberMe": false,
+  "verifyEmail": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 900,
+  "failureFactor": 10,
+  "accessTokenLifespan": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 86400,
+  "roles": {
+    "realm": [
+      { "name": "admin",    "description": "Kentro consultant — read/write across the deployment." },
+      { "name": "reviewer", "description": "Kentro auditor — read-only with approve/decline." },
+      { "name": "client",   "description": "Customer-side user — intake + dashboards + deliverables." }
+    ]
+  },
+  "defaultRoles": ["client"],
+  "clients": [
+    {
+      "clientId": "shield-web",
+      "name": "SHIELD web (Next.js)",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "rootUrl": "http://localhost:3000",
+      "redirectUris": [
+        "http://localhost:3000/api/auth/callback/keycloak",
+        "http://localhost:3000/*"
+      ],
+      "webOrigins": ["http://localhost:3000"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    },
+    {
+      "clientId": "shield-api",
+      "name": "SHIELD api (FastAPI)",
+      "enabled": true,
+      "publicClient": false,
+      "bearerOnly": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false
+    }
+  ]
+}

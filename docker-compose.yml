@@ -1,8 +1,188 @@
+# SHIELD by Kentro v2.0 — dev container compose
+#
+# Multi-service local development stack per the approved execution plan §2.
+# All development must occur inside Docker (CLAUDE.md rule 6).
+#
+# Services:
+#   web      Next.js 14 App Router (TypeScript, Tailwind, shadcn/ui copied in)
+#   api      FastAPI (Python 3.12) — REST + OpenAPI
+#   worker   Celery worker (shares api image)
+#   db       PostgreSQL 16
+#   redis    Redis 7 (Celery queue + ephemeral cache)
+#   minio    S3-compatible object storage (dev stand-in for AWS S3 + KMS)
+#   keycloak Keycloak 24 (OIDC IdP; realm imported from /infra/keycloak)
+#   mailhog  SMTP catcher (email delivery feature-flagged off in v1)
+
+name: shield
+
 services:
-  app:
+  web:
     build:
       context: .
-      dockerfile: Dockerfile
-    command: sleep infinity
+      dockerfile: infra/docker/web.Dockerfile
+    command: sh -c "pnpm install --frozen-lockfile || pnpm install; pnpm --filter @shield/web dev"
+    working_dir: /workspace
     volumes:
       - .:/workspace:cached
+      - web_node_modules:/workspace/node_modules
+      - web_next_cache:/workspace/apps/web/.next
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://api:8000
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev-only-not-for-prod}
+      KEYCLOAK_ISSUER: http://keycloak:8080/realms/shield
+      KEYCLOAK_CLIENT_ID: shield-web
+      NODE_ENV: development
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    networks:
+      - shield
+
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+    command: sh -c "pip install -e apps/api[dev] && alembic -c apps/api/alembic.ini upgrade head && uvicorn apps.api.app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir apps/api"
+    working_dir: /workspace
+    volumes:
+      - .:/workspace:cached
+      - api_venv:/opt/venv
+    environment:
+      DATABASE_URL: postgresql+psycopg://shield:shield@db:5432/shield
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_BUCKET: shield-artifacts
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-shield-minio}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-shield-minio-secret}
+      S3_KMS_KEY_ID: ${S3_KMS_KEY_ID:-dev-stub-key}
+      KEYCLOAK_ISSUER: http://keycloak:8080/realms/shield
+      KEYCLOAK_AUDIENCE: shield-api
+      SHIELD_LLM_PROVIDER: ${SHIELD_LLM_PROVIDER:-anthropic}
+      SHIELD_LLM_MODEL: ${SHIELD_LLM_MODEL:-claude-opus-4-7}
+      SHIELD_LLM_MODE: ${SHIELD_LLM_MODE:-fixture}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      SHIELD_AUTH_REQUIRE_MFA: "false"
+      SHIELD_AUTH_REQUIRE_EMAIL_VERIFY: "false"
+      SHIELD_EMAIL_DELIVERY_ENABLED: "false"
+      SHIELD_REDACTION_MODE: strict
+      JWT_ACCESS_TTL_SECONDS: "900"
+      JWT_REFRESH_TTL_SECONDS: "1800"
+      ENVIRONMENT: development
+      LOG_LEVEL: INFO
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+    networks:
+      - shield
+
+  worker:
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+    command: sh -c "pip install -e apps/api[dev] && celery -A apps.api.app.worker.celery_app worker --loglevel=INFO --concurrency=2"
+    working_dir: /workspace
+    volumes:
+      - .:/workspace:cached
+      - api_venv:/opt/venv
+    environment:
+      DATABASE_URL: postgresql+psycopg://shield:shield@db:5432/shield
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_BUCKET: shield-artifacts
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-shield-minio}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-shield-minio-secret}
+      S3_KMS_KEY_ID: ${S3_KMS_KEY_ID:-dev-stub-key}
+      SHIELD_LLM_PROVIDER: ${SHIELD_LLM_PROVIDER:-anthropic}
+      SHIELD_LLM_MODEL: ${SHIELD_LLM_MODEL:-claude-opus-4-7}
+      SHIELD_LLM_MODE: ${SHIELD_LLM_MODE:-fixture}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      SHIELD_REDACTION_MODE: strict
+      ENVIRONMENT: development
+      LOG_LEVEL: INFO
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - shield
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: shield
+      POSTGRES_PASSWORD: shield
+      POSTGRES_DB: shield
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shield -d shield"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - shield
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - shield
+
+  minio:
+    image: minio/minio:RELEASE.2024-08-17T01-24-54Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-shield-minio}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-shield-minio-secret}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    networks:
+      - shield
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    command: start-dev --import-realm
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./infra/keycloak:/opt/keycloak/data/import:ro
+    ports:
+      - "8080:8080"
+    networks:
+      - shield
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - shield
+
+volumes:
+  pg_data:
+  minio_data:
+  web_node_modules:
+  web_next_cache:
+  api_venv:
+
+networks:
+  shield:
+    driver: bridge

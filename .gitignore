@@ -1,0 +1,69 @@
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.tox/
+
+# Node / Next.js
+node_modules/
+.next/
+.turbo/
+.pnpm-store/
+.pnpm-debug.log*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.tsbuildinfo
+.eslintcache
+
+# Playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
+# IDE / editor
+.vscode/settings.json
+.vscode/launch.json
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker / local data
+.docker-volumes/
+pg_data/
+minio_data/
+
+# Build artifacts
+*.log
+coverage/
+*.lcov
+.nyc_output/
+
+# Allow tracked example files
+!.env.example
+!.vscode/extensions.json

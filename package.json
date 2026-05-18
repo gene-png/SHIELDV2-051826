@@ -1,0 +1,19 @@
+{
+  "name": "shield-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SHIELD by Kentro v2.0 — enterprise cybersecurity assessment platform",
+  "packageManager": "pnpm@9.12.3",
+  "scripts": {
+    "dev": "pnpm --filter @shield/web dev",
+    "build": "pnpm --filter @shield/web build",
+    "lint": "pnpm --filter @shield/web lint",
+    "test:e2e": "playwright test",
+    "test:a11y": "playwright test --grep @a11y",
+    "seed:reference-data": "bash scripts/seed-reference-data.sh"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "@axe-core/playwright": "^4.10.0"
+  }
+}
