@@ -38,12 +38,35 @@ All development happens inside the dev container. Nothing installs to the host.
 
 ## Quick start
 
+### Option A — VS Code Dev Containers (recommended)
+
+1. Open the repo in VS Code with the **Dev Containers** extension installed.
+2. When prompted, **Reopen in Container**. VS Code builds the `web` service and brings up all 8 compose services (db, redis, minio, keycloak, mailhog, api, worker, web).
+3. Once VS Code attaches, open the integrated terminal and run:
+   ```bash
+   bash scripts/dev-web.sh
+   ```
+   First run installs pnpm dependencies (~3–5 minutes). Subsequent runs start Next.js immediately.
+4. In a second terminal:
+   ```bash
+   docker compose logs -f api
+   ```
+   to watch the API service install + migrate + start (~2–3 minutes first run).
+5. Open http://localhost:3000 once you see `▲ Next.js 14.2.x` and `- Local: http://0.0.0.0:3000` in the web terminal.
+
+### Option B — plain Docker Compose
+
+If you don't use VS Code Dev Containers, you can still run the stack from a host shell:
+
 ```bash
 cp .env.example .env
-docker compose up --build
+docker compose up -d db redis minio keycloak mailhog
+docker compose up -d --build api worker
+# Wait until http://localhost:8000/health returns 200
+docker compose run --service-ports --rm web bash scripts/dev-web.sh
 ```
 
-Then open:
+### URLs once everything is up
 
 | Service           | URL                          |
 | ----------------- | ---------------------------- |
@@ -54,21 +77,22 @@ Then open:
 | MailHog (UI)      | http://localhost:8025        |
 | Postgres          | postgres://localhost:5432    |
 
-The first boot will install dependencies, run Alembic migrations, and seed reference data.
+## Troubleshooting
+
+- **`http://localhost:3000` blank or "site can't be reached":** the web container is sleeping by design. Run `bash scripts/dev-web.sh` inside the web container (VS Code terminal). Wait for the `Local: http://0.0.0.0:3000` line.
+- **`http://localhost:8000/health` refused:** api container is still installing or running migrations. `docker compose logs -f api` will show progress; first run takes 2–3 minutes for pip install + WeasyPrint deps.
+- **`alembic` fails on first migration:** confirm `db` is healthy first — `docker compose ps db` should show `healthy`.
+- **Stale `node_modules` after a dependency change:** `docker compose down -v` clears the named volume; re-run `bash scripts/dev-web.sh`.
+- **Keycloak login loop:** the realm imports admin/admin on first boot; full OIDC sign-in via Keycloak ships in a follow-up, so v1 uses SHIELD-issued JWTs (Credentials provider). You shouldn't need Keycloak to sign in for v1.
 
 ## Running tests
 
 ```bash
-# API unit + integration tests (inside the api container)
-docker compose exec api pytest
-
-# Web lint + unit tests
-docker compose exec web pnpm lint
-docker compose exec web pnpm test
-
-# End-to-end (Playwright, from host or web container)
-pnpm test:e2e
+# API unit tests (inside the api container)
+docker compose exec api pytest -m unit
 ```
+
+End-to-end + accessibility tests land with §13 of the execution plan.
 
 ## Documentation
 

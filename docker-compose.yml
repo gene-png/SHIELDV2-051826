@@ -20,7 +20,10 @@ services:
     build:
       context: .
       dockerfile: infra/docker/web.Dockerfile
-    command: sh -c "pnpm install --frozen-lockfile || pnpm install; pnpm --filter @shield/web dev"
+    # Sleep so VS Code can attach cleanly. Start the Next.js dev server
+    # yourself from a VS Code terminal with: `bash scripts/dev-web.sh`
+    # (it runs `pnpm install` then `pnpm --filter @shield/web dev`).
+    command: sleep infinity
     working_dir: /workspace
     volumes:
       - .:/workspace:cached
