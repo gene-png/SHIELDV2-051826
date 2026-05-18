@@ -1,0 +1,30 @@
+{
+  "schema_version": "0.1.0",
+  "source": "STUB — Kentro CSF Playbook Step 1.1 / 1.2 / 1.3. Real tier questionnaires (HIGH 15Q / MOD 12Q / LOW 8Q) ship with Eugene's reference data CSV.",
+  "tiers": {
+    "high": {
+      "label": "HIGH (FIPS 199)",
+      "min_question_count": 15,
+      "intro": "Tier-HIGH systems carry the strictest confidentiality / integrity / availability bar. Questions probe full-program rigor.",
+      "questions": [
+        { "id": "CSF-H-Q01", "stem": "Walk us through your full enterprise risk management program and how cybersecurity rolls up to executive oversight." }
+      ]
+    },
+    "moderate": {
+      "label": "MODERATE (FIPS 199)",
+      "min_question_count": 12,
+      "intro": "Tier-MOD systems have meaningful business impact but tolerate brief outages. Questions probe established practices.",
+      "questions": [
+        { "id": "CSF-M-Q01", "stem": "Walk us through your cybersecurity policy framework and how it's reviewed." }
+      ]
+    },
+    "low": {
+      "label": "LOW (FIPS 199)",
+      "min_question_count": 8,
+      "intro": "Tier-LOW systems have limited adverse-impact exposure. Questions probe baseline hygiene only.",
+      "questions": [
+        { "id": "CSF-L-Q01", "stem": "Walk us through what cybersecurity practices the team relies on day-to-day." }
+      ]
+    }
+  }
+}

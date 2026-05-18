@@ -104,6 +104,32 @@ Running log of build progress against the execution plan at `docs/execution-plan
 **Closed inline:**
 - First-user-as-Primary-POC TBD — implemented as an atomic transaction in `/api/auth/signup` (Master Spec §1 Q2 — developer judgment).
 
+---
+
+## 2026-05-18 — §4 Reference data load (complete)
+
+**Seed files** (live in `packages/`)
+- [x] `packages/zt-data/cisa_questions.json` — full 12-question CISA ZTMM 2.0 questionnaire (Z-Q1..Z-Q12) extracted verbatim from `reference-docs/SHIELDv2_CISA_ZT_Questionnaire.docx`. 5 pillars + 3 cross-cutting; Traditional/Initial/Advanced/Optimal maturity ladder.
+- [x] `packages/zt-data/dod_questions.json` — full 12-question DoD ZTRA questionnaire (D-Q1..D-Q12) extracted from `reference-docs/SHIELDv2_DoD_ZT_Questionnaire.docx`. 7 pillars; phase-tagged Target / Advanced per the 45+107 activity model; DoD-specific context (CAC/PIV, mission partner, classified/CUI, DISA STIG, ICAM, CMMC/DFARS).
+- [x] `packages/csf-data/csf_2_0_subcategories.csv` — 104-row NIST CSF 2.0 subcategory reference (all 6 functions: GV / ID / PR / DE / RS / RC). **STUB caveat:** IG metric alignment, FISMA domain, and interview-topic-family columns are null pending Eugene's full Reference Data CSV — rollup Rules 2 and 5 short-circuit until populated (see `DECISIONS.md` TBD #1).
+- [x] `packages/csf-data/csf_tier_questionnaires.json` — one representative HIGH / MOD / LOW question per tier. **STUB** until Eugene supplies the full 15Q / 12Q / 8Q banks.
+- [x] `packages/attack-data/curated_subset.json` — 33 ATT&CK techniques across the 11 enterprise tactics. **STUB** based on CISA Top-25 + ATT&CK Evaluations "most observed" until Eugene confirms the Kentro-approved subset.
+- [x] `packages/design-system/enums.yaml` — single source of truth for every enum → display-label pair. Cross-checked against `packages/design-system/labels.ts` and `app/models/enums.py` by `load_label_map.py`.
+
+**Loader scripts** (`apps/api/scripts/`)
+- [x] `load_csf_subcategories.py` — parses the CSV, upserts by primary key (e.g. `GV.OC-01`). Idempotent.
+- [x] `load_cisa_zt_questions.py` — parses CISA JSON, upserts by `(framework_key, external_id)`.
+- [x] `load_dod_zt_questions.py` — parses DoD JSON, upserts by `(framework_key, external_id)`.
+- [x] `load_csf_tier_questionnaires.py` — loads the HIGH / MOD / LOW stub questions.
+- [x] `load_attack_techniques.py` — prefers full STIX bundle at `packages/attack-data/enterprise-attack.json`; falls back to the curated subset when absent.
+- [x] `load_attack_curated.py` — thin alias; will flag the 33 curated within the full bundle once vendored.
+- [x] `load_label_map.py` — invariant check: every enum value in `app/models/enums.py` must have a key in both `enums.yaml` and `labels.ts`. Fails CI when out of sync.
+- [x] `scripts/seed-reference-data.sh` runs the chain end-to-end; idempotent so re-runs are safe.
+
+**Module layout adjustments**
+- [x] Added empty `apps/__init__.py` and `apps/api/__init__.py` so `python -m apps.api.scripts.*` resolves cleanly from `/workspace`.
+- [x] Added `pyyaml>=6.0.2` to api deps for `load_label_map.py`.
+
 ## What's next
 
-§7 Intake wizard (6-step flow) is the next user-visible block. §4 reference data is a prerequisite for the questionnaire renderer in I4, but I1 / I2 / I3 / I5 / I6 can be built ahead of it.
+§7 Intake wizard (6-step flow) — biggest remaining user-facing block. All four service workspaces in §8 depend on it for the questionnaire-rendering UX it establishes.

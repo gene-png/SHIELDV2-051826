@@ -1,0 +1,61 @@
+# Single source of truth for enum → display-label mappings.
+# Loaded into the database by scripts/load_label_map.py and into the web by
+# packages/design-system/labels.ts (hand-mirrored — keep them in sync).
+#
+# Master Spec §14: every enum has a display-label map applied at the API
+# layer or template render layer. Never expose raw slugs in user-facing UI.
+
+Role:
+  admin: Kentro consultant
+  reviewer: Reviewer
+  client: Client
+
+ServiceType:
+  tech_debt: Technical Debt Review
+  zero_trust: Zero Trust Assessment
+  csf: NIST CSF 2.0 Assessment
+  attack_surface: Attack Surface Coverage
+
+ServiceFramework:
+  cisa: CISA Zero Trust Maturity Model 2.0
+  dod: DoD Zero Trust Reference Architecture
+
+ServiceStatus:
+  new: New
+  intake_pending: Intake in progress
+  in_progress: Active
+  awaiting_review: Awaiting review
+  ready_for_release: Ready to release
+  released: Released
+  archived: Archived
+
+TierLevel:
+  high: High
+  moderate: Moderate
+  low: Low
+
+CoverageStatus:
+  covered: Covered
+  partial: Partial
+  uncovered: Uncovered
+
+GapPriority:
+  P1: Priority 1
+  P2: Priority 2
+  P3: Priority 3
+
+MaturityCisaLevel:
+  traditional: Traditional
+  initial: Initial
+  advanced: Advanced
+  optimal: Optimal
+
+MaturityDodPhase:
+  target: Target
+  advanced: Advanced
+
+DeliverableStatus:
+  draft: Draft
+  final: Final
+  released: Released
+  superseded: Superseded
