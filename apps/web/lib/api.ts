@@ -88,4 +88,114 @@ export const api = {
       headers: { Authorization: `Bearer ${bearer}` },
       body: JSON.stringify(body),
     }),
+
+  // ----- Intake (Master Spec §6.2 / §7 of execution plan) ------------------
+
+  intakeStatus: (bearer: string) =>
+    call<IntakeStatus>("/api/intake/status", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${bearer}` },
+    }),
+
+  selectServices: (bearer: string, body: ServiceSelectionInput) =>
+    fetch(`${BASE}/api/intake/service-selection`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${bearer}` },
+      body: JSON.stringify(body),
+    }).then(throwIfError),
+
+  consultationRequest: (bearer: string, body: ConsultationInput) =>
+    call<{ status: string; id: string }>("/api/intake/consultation-request", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${bearer}` },
+      body: JSON.stringify(body),
+    }),
+
+  saveOrganization: (bearer: string, body: OrganizationInput) =>
+    fetch(`${BASE}/api/intake/organization`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${bearer}` },
+      body: JSON.stringify(body),
+    }).then(throwIfError),
+
+  saveSystems: (bearer: string, body: { systems: SystemInput[] }) =>
+    fetch(`${BASE}/api/intake/systems`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${bearer}` },
+      body: JSON.stringify(body),
+    }).then(throwIfError),
+
+  submitIntake: (bearer: string) =>
+    call<{ services_created: string[]; home_url: string }>("/api/intake/submit", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${bearer}` },
+    }),
 };
+
+async function throwIfError(res: Response): Promise<void> {
+  if (!res.ok) {
+    let detail: string | undefined;
+    try {
+      detail = (await res.json())?.detail;
+    } catch {
+      // ignore
+    }
+    throw new ApiError(res.status, detail ?? res.statusText);
+  }
+}
+
+export type ServiceType = "tech_debt" | "zero_trust" | "csf" | "attack_surface";
+export type ServiceFramework = "cisa" | "dod";
+export type TierLevel = "high" | "moderate" | "low";
+
+export interface ServiceSelectionInput {
+  services: ServiceType[];
+  not_sure: boolean;
+  framework?: ServiceFramework | null;
+}
+
+export interface ConsultationInput {
+  role_title?: string;
+  organization_name?: string;
+  prompt_text?: string;
+  contact_preference?: "phone" | "email";
+  phone?: string;
+  preferred_time?: string;
+  additional_notes?: string;
+}
+
+export interface OrganizationInput {
+  legal_name: string;
+  dba_name?: string;
+  website?: string;
+  size_band?: string;
+  industry?: string;
+  address_street?: string;
+  address_city?: string;
+  address_state?: string;
+  address_postal_code?: string;
+  address_country?: string;
+  compliance_deadline?: string;
+}
+
+export interface SystemInput {
+  name: string;
+  csam_id?: string;
+  fips_categorization?: TierLevel;
+  owner_email?: string;
+  isso_email?: string;
+  hosting?: string;
+  ato_status?: string;
+  ato_expiration_date?: string;
+  notes?: string;
+}
+
+export interface IntakeStatus {
+  selected_services: ServiceType[];
+  framework: ServiceFramework | null;
+  org_complete: boolean;
+  systems_complete: boolean;
+  questionnaire_progress_pct: number;
+  artifacts_uploaded: number;
+  can_submit: boolean;
+}
