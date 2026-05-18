@@ -199,3 +199,31 @@ export interface IntakeStatus {
   artifacts_uploaded: number;
   can_submit: boolean;
 }
+
+export type ServiceStatusValue =
+  | "new"
+  | "intake_pending"
+  | "in_progress"
+  | "awaiting_review"
+  | "ready_for_release"
+  | "released"
+  | "archived";
+
+export interface ServiceSummary {
+  id: string;
+  type: ServiceType;
+  framework: ServiceFramework | null;
+  status: ServiceStatusValue;
+  headline: string | null;
+  released_at: string | null;
+  updated_at: string;
+}
+
+export async function fetchMyServices(bearer: string): Promise<ServiceSummary[]> {
+  const res = await fetch(`${BASE}/api/services/mine`, {
+    headers: { Authorization: `Bearer ${bearer}` },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new ApiError(res.status, res.statusText);
+  return (await res.json()) as ServiceSummary[];
+}

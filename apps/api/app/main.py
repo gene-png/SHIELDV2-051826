@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.routers import auth as auth_router
 from app.api.routers import intake as intake_router
+from app.api.routers import services as services_router
 from app.settings import get_settings
 from app.spine.access import AccessDenied
 from app.spine.correlation import CorrelationIdMiddleware
@@ -48,6 +49,7 @@ app.add_middleware(CorrelationIdMiddleware)
 
 app.include_router(auth_router.router)
 app.include_router(intake_router.router)
+app.include_router(services_router.router)
 
 
 @app.exception_handler(AccessDenied)
