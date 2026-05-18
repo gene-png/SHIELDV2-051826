@@ -1,11 +1,19 @@
 /** @type {import('next').NextConfig} */
+
+// Browser ↔ API base URL: the browser can't resolve `http://api:8000` (that's
+// a docker-internal hostname). The web app proxies every backend call through
+// Next.js itself: browser → /backend/api/* → http://api:8000/api/*. This keeps
+// the browser on the same origin (no CORS) and lets you swap the API hostname
+// at deploy time by changing one env var.
+const apiInternalUrl = process.env.API_INTERNAL_URL || "http://api:8000";
+
 const cspDirectives = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  "connect-src 'self' http://localhost:8000 http://api:8000 http://keycloak:8080",
+  "connect-src 'self'",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -24,11 +32,16 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  experimental: {
-    typedRoutes: true,
-  },
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
+  },
+  async rewrites() {
+    return [
+      {
+        source: "/backend/:path*",
+        destination: `${apiInternalUrl}/:path*`,
+      },
+    ];
   },
 };
 

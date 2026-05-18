@@ -1,11 +1,17 @@
 /**
- * Thin SHIELD API client. Always talks server-to-server in NextAuth's
- * `authorize` callback (uses NEXT_PUBLIC_API_BASE_URL but resolved inside the
- * server runtime). Client components should call route handlers, not this
- * directly.
+ * Thin SHIELD API client.
+ *
+ * Two transport modes:
+ * - **Browser** uses the same-origin `/backend/...` prefix; Next.js rewrites
+ *   (see `next.config.mjs`) proxy to the api container. This avoids CORS and
+ *   makes the browser unaware of the docker-internal hostname.
+ * - **Server-side** (NextAuth `authorize` callback, server components) uses the
+ *   container-network URL directly (`http://api:8000` by default).
  */
 
-const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://api:8000";
+const BROWSER_BASE = "/backend";
+const SERVER_BASE = process.env.API_INTERNAL_URL ?? "http://api:8000";
+const BASE = typeof window === "undefined" ? SERVER_BASE : BROWSER_BASE;
 
 export interface SignUpInput {
   display_name: string;
@@ -35,14 +41,23 @@ export interface SignInResponse {
 }
 
 async function call<T>(path: string, init: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init.headers ?? {}),
-    },
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...(init.headers ?? {}),
+      },
+      cache: "no-store",
+    });
+  } catch (err) {
+    // Network-level failure (DNS, offline, CORS preflight, etc.). Always log
+    // so dev-console diagnoses are possible; throw an ApiError so callers see
+    // a uniform interface.
+    console.error("[shield/api] fetch failed for", `${BASE}${path}`, err);
+    throw new ApiError(0, "Network error — could not reach the SHIELD API. Is the api service up?");
+  }
   if (!res.ok) {
     let detail: string | undefined;
     try {
@@ -98,11 +113,16 @@ export const api = {
     }),
 
   selectServices: (bearer: string, body: ServiceSelectionInput) =>
-    fetch(`${BASE}/api/intake/service-selection`, {
+    call<void>("/api/intake/service-selection", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${bearer}` },
+      headers: { Authorization: `Bearer ${bearer}` },
       body: JSON.stringify(body),
-    }).then(throwIfError),
+    }).catch((err) => {
+      // 204 No Content from FastAPI throws on res.json(); swallow when status was OK.
+      if (err instanceof ApiError && err.status === 0) throw err;
+      if (err instanceof SyntaxError) return;
+      throw err;
+    }),
 
   consultationRequest: (bearer: string, body: ConsultationInput) =>
     call<{ status: string; id: string }>("/api/intake/consultation-request", {
@@ -112,18 +132,26 @@ export const api = {
     }),
 
   saveOrganization: (bearer: string, body: OrganizationInput) =>
-    fetch(`${BASE}/api/intake/organization`, {
+    call<void>("/api/intake/organization", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${bearer}` },
+      headers: { Authorization: `Bearer ${bearer}` },
       body: JSON.stringify(body),
-    }).then(throwIfError),
+    }).catch((err) => {
+      if (err instanceof ApiError && err.status === 0) throw err;
+      if (err instanceof SyntaxError) return;
+      throw err;
+    }),
 
   saveSystems: (bearer: string, body: { systems: SystemInput[] }) =>
-    fetch(`${BASE}/api/intake/systems`, {
+    call<void>("/api/intake/systems", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${bearer}` },
+      headers: { Authorization: `Bearer ${bearer}` },
       body: JSON.stringify(body),
-    }).then(throwIfError),
+    }).catch((err) => {
+      if (err instanceof ApiError && err.status === 0) throw err;
+      if (err instanceof SyntaxError) return;
+      throw err;
+    }),
 
   submitIntake: (bearer: string) =>
     call<{ services_created: string[]; home_url: string }>("/api/intake/submit", {
@@ -131,18 +159,6 @@ export const api = {
       headers: { Authorization: `Bearer ${bearer}` },
     }),
 };
-
-async function throwIfError(res: Response): Promise<void> {
-  if (!res.ok) {
-    let detail: string | undefined;
-    try {
-      detail = (await res.json())?.detail;
-    } catch {
-      // ignore
-    }
-    throw new ApiError(res.status, detail ?? res.statusText);
-  }
-}
 
 export type ServiceType = "tech_debt" | "zero_trust" | "csf" | "attack_surface";
 export type ServiceFramework = "cisa" | "dod";
@@ -220,10 +236,8 @@ export interface ServiceSummary {
 }
 
 export async function fetchMyServices(bearer: string): Promise<ServiceSummary[]> {
-  const res = await fetch(`${BASE}/api/services/mine`, {
+  return call<ServiceSummary[]>("/api/services/mine", {
+    method: "GET",
     headers: { Authorization: `Bearer ${bearer}` },
-    cache: "no-store",
   });
-  if (!res.ok) throw new ApiError(res.status, res.statusText);
-  return (await res.json()) as ServiceSummary[];
 }
