@@ -73,6 +73,37 @@ Running log of build progress against the execution plan at `docs/execution-plan
 - [x] `app/spine/logging.py` — structlog JSON renderer with sensitive-key stripping (`password`, `Authorization`, `token`, `Cookie`).
 - [x] CSP / HSTS / X-Frame-Options / Referrer-Policy / Permissions-Policy in `apps/web/next.config.mjs`.
 
+---
+
+## 2026-05-18 — §5 Auth + onboarding (substantial)
+
+**Backend (`apps/api/app/api/routers/auth.py`)**
+- [x] `POST /api/auth/signup` — Argon2id password hash, atomic first-user-as-Primary-POC, client singleton provisioning, audit row.
+- [x] `POST /api/auth/sign-in` — credential check, Redis-backed lockout enforcement, audit on success + failure, 15-min JWT.
+- [x] `POST /api/auth/sign-out` — audit row + stateless JWT expiry.
+- [x] `POST /api/auth/accept-invite` — hashed-token validation, 7-day expiry check, new-user creation, immediate sign-in.
+- [x] `POST /api/auth/change-password` — verify current + Argon2id rehash.
+- [x] `app/auth/jwt.py` — HS256 SHIELD-issued access token, signed with `NEXTAUTH_SECRET` (shared with web). Validator wired into `get_current_user`.
+
+**Web (`apps/web/`)**
+- [x] NextAuth v5 Credentials provider (`lib/auth.ts`) — posts to SHIELD `/api/auth/sign-in`, stashes the access token on the session.
+- [x] Route handler at `app/api/auth/[...nextauth]/route.ts` re-exports `GET` + `POST`.
+- [x] `middleware.ts` route protection — public routes (`/`, `/sign-in`, `/sign-up`, `/verify`, `/accept-invite`) open; everything else requires auth.
+- [x] `app/(public)/sign-in/page.tsx` — polygonal SVG background (`PolygonalBackdrop`), bottom-border-only fields, "SHIELD by Kentro" wordmark + "by Kentro" subline.
+- [x] `app/(public)/sign-up/page.tsx` — name + email + password (with `PasswordStrengthMeter` — 5-bin heuristic) + confirm + Terms checkbox; on success, hands off to NextAuth and redirects to `/intake`.
+- [x] `app/(public)/accept-invite/[token]/page.tsx`.
+- [x] `app/(public)/verify/[token]/page.tsx` — explanatory no-op for v1.
+- [x] `app/(public)/mfa/enroll/page.tsx` — renders `null` for v1.
+- [x] `app/welcome/page.tsx` — between sign-up and intake.
+- [x] `app/sign-out/route.ts` — GET handler that POSTs the audit ping to SHIELD before calling NextAuth `signOut`.
+- [x] `app/(client)/layout.tsx` — left-rail nav matching design mockup; pulls session via `auth()` server helper.
+- [x] `app/(client)/settings/page.tsx` + `app/(client)/settings/password/page.tsx`.
+- [x] `app/(client)/home/page.tsx` + `app/(client)/intake/page.tsx` placeholders so post-sign-in redirects resolve.
+- [x] TypeScript module augmentation in `types/next-auth.d.ts` for `session.accessToken`, `user.role`, `user.isPrimaryPoc`.
+
+**Closed inline:**
+- First-user-as-Primary-POC TBD — implemented as an atomic transaction in `/api/auth/signup` (Master Spec §1 Q2 — developer judgment).
+
 ## What's next
 
-§4 Reference data load — write loader scripts (CSF subcategories stub, CISA + DoD questionnaire JSON parsing from `reference-docs/SHIELDv2_*Questionnaire.docx`, CSF tier questionnaires, ATT&CK Enterprise STIX vendor + curated subset stub, label map). Then §5 sign-in / sign-up flows that consume the auth scaffolding above.
+§7 Intake wizard (6-step flow) is the next user-visible block. §4 reference data is a prerequisite for the questionnaire renderer in I4, but I1 / I2 / I3 / I5 / I6 can be built ahead of it.

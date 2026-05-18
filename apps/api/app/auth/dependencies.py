@@ -11,10 +11,11 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Awaitable, Callable
-from typing import Any
 
+import jwt as pyjwt
 from fastapi import Depends, Header, HTTPException, status
 
+from app.auth.jwt import decode_access_token
 from app.models.enums import Role
 from app.settings import get_settings
 
@@ -64,12 +65,23 @@ async def get_current_user(
         return test_user
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="not authenticated")
-    # Production path: validate the bearer against Keycloak JWKS. Wiring lands
-    # alongside the §5 sign-in surface; for now we refuse to accept an
-    # unvalidated token rather than risk a silent bypass.
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Keycloak bearer validation lands with §5 auth surface",
+    token = authorization.split(" ", 1)[1].strip()
+    try:
+        payload = decode_access_token(token)
+    except pyjwt.ExpiredSignatureError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="token expired"
+        ) from exc
+    except pyjwt.InvalidTokenError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid token"
+        ) from exc
+    return CurrentUser(
+        user_id=uuid.UUID(payload["sub"]),
+        client_id=uuid.UUID(payload["client_id"]),
+        email=payload["email"],
+        role=Role(payload["role"]),
+        display_name=payload.get("display_name", ""),
     )
 
 
