@@ -20,14 +20,27 @@ export default function SignUpPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const strength = evaluatePassword(password);
-  const passwordOk = strength.score >= 4;
-  const passwordsMatch = password.length > 0 && password === confirm;
-  const formOk = displayName && email && passwordOk && passwordsMatch && acceptTerms;
+  function validate(): string | null {
+    if (!displayName.trim()) return "Enter your name.";
+    if (!email.trim()) return "Enter your work email.";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Enter a valid email address.";
+    const strength = evaluatePassword(password);
+    if (password.length < 12) return "Password must be at least 12 characters.";
+    if (strength.score < 3) {
+      return `Password is too weak. Missing: ${strength.reasons.join(", ")}.`;
+    }
+    if (password !== confirm) return "Passwords don't match.";
+    if (!acceptTerms) return "Please accept the privacy notice and accessibility statement to continue.";
+    return null;
+  }
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (!formOk) return;
+    const validation = validate();
+    if (validation) {
+      setError(validation);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -63,7 +76,7 @@ export default function SignUpPage() {
       <p className="mt-1 text-sm text-n-500">
         It takes about a minute. Your consultant will reach out after intake.
       </p>
-      <form className="mt-6 space-y-5" onSubmit={onSubmit}>
+      <form className="mt-6 space-y-5" onSubmit={onSubmit} noValidate>
         <BottomBorderField
           id="display_name"
           label="Your name"
@@ -71,7 +84,6 @@ export default function SignUpPage() {
           autoComplete="name"
           value={displayName}
           onChange={setDisplayName}
-          required
         />
         <BottomBorderField
           id="email"
@@ -80,7 +92,6 @@ export default function SignUpPage() {
           autoComplete="email"
           value={email}
           onChange={setEmail}
-          required
         />
         <div>
           <BottomBorderField
@@ -90,7 +101,6 @@ export default function SignUpPage() {
             autoComplete="new-password"
             value={password}
             onChange={setPassword}
-            required
           />
           {password && <PasswordStrengthMeter value={password} />}
         </div>
@@ -101,7 +111,6 @@ export default function SignUpPage() {
           autoComplete="new-password"
           value={confirm}
           onChange={setConfirm}
-          required
         />
         <label className="flex items-start gap-2 text-sm text-n-700">
           <input
@@ -129,7 +138,7 @@ export default function SignUpPage() {
         )}
         <button
           type="submit"
-          disabled={!formOk || busy}
+          disabled={busy}
           className="w-full rounded-control bg-gov-blue px-4 py-2.5 text-sm font-semibold text-white shadow-card transition-colors hover:bg-navy disabled:opacity-60"
         >
           {busy ? "Creating account…" : "Create account"}
@@ -152,7 +161,6 @@ function BottomBorderField(props: {
   value: string;
   onChange: (v: string) => void;
   autoComplete?: string;
-  required?: boolean;
 }) {
   return (
     <div>
@@ -163,7 +171,6 @@ function BottomBorderField(props: {
         id={props.id}
         type={props.type}
         autoComplete={props.autoComplete}
-        required={props.required}
         value={props.value}
         onChange={(e) => props.onChange(e.target.value)}
         className="block w-full border-0 border-b border-n-300 bg-transparent px-0 py-2 text-base text-n-900 focus:border-gov-blue focus:outline-none focus:ring-0"

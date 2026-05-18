@@ -16,11 +16,28 @@ export default function ChangePasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const ok = current && evaluatePassword(next).score >= 4;
+  function validate(): string | null {
+    if (!current) return "Enter your current password.";
+    if (next.length < 12) return "New password must be at least 12 characters.";
+    const strength = evaluatePassword(next);
+    if (strength.score < 3) {
+      return `New password is too weak. Missing: ${strength.reasons.join(", ")}.`;
+    }
+    if (current === next) return "New password must differ from the current one.";
+    return null;
+  }
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (!ok || !session?.accessToken) return;
+    const validation = validate();
+    if (validation) {
+      setError(validation);
+      return;
+    }
+    if (!session?.accessToken) {
+      setError("Session expired — please sign in again.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -66,7 +83,7 @@ export default function ChangePasswordPage() {
         {success && <p className="text-sm text-success">Password updated.</p>}
         <button
           type="submit"
-          disabled={!ok || busy}
+          disabled={busy}
           className="w-full rounded-control bg-gov-blue px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
         >
           {busy ? "Saving…" : "Update password"}

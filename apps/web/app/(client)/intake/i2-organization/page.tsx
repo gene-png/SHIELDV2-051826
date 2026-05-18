@@ -39,7 +39,14 @@ export default function I2OrgPage() {
   }
 
   async function onContinue() {
-    if (!session?.accessToken) return;
+    if (!form.legal_name.trim()) {
+      setError("Enter your organization's legal name to continue.");
+      return;
+    }
+    if (!session?.accessToken) {
+      setError("Session expired — please sign in again.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -179,7 +186,7 @@ export default function I2OrgPage() {
         <button
           type="button"
           onClick={onContinue}
-          disabled={!form.legal_name || busy}
+          disabled={busy}
           className="rounded-control bg-gov-blue px-5 py-2.5 text-sm font-semibold text-white shadow-card disabled:opacity-60"
         >
           {busy ? "Saving…" : "Continue"}

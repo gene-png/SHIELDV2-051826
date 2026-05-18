@@ -67,12 +67,28 @@ export default function I1ServicesPage() {
   }
 
   const hasZeroTrust = picked.has("zero_trust");
-  const canContinue =
-    notSure ||
-    (picked.size > 0 && (!hasZeroTrust || framework !== null));
+
+  function validate(): string | null {
+    if (notSure) return null;
+    if (picked.size === 0) {
+      return "Pick at least one service, or select 'I'm not sure' to talk it through with us.";
+    }
+    if (hasZeroTrust && framework === null) {
+      return "Choose CISA ZTMM or DoD ZTRA for the Zero Trust Assessment.";
+    }
+    return null;
+  }
 
   async function onContinue() {
-    if (!session?.accessToken) return;
+    const validation = validate();
+    if (validation) {
+      setError(validation);
+      return;
+    }
+    if (!session?.accessToken) {
+      setError("Session expired — please sign in again.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -198,7 +214,7 @@ export default function I1ServicesPage() {
         <button
           type="button"
           onClick={onContinue}
-          disabled={!canContinue || busy}
+          disabled={busy}
           className="rounded-control bg-gov-blue px-5 py-2.5 text-sm font-semibold text-white shadow-card transition-colors hover:bg-navy disabled:opacity-60"
         >
           {busy ? "Saving…" : notSure ? "Request a call →" : "Continue"}

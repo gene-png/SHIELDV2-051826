@@ -17,12 +17,23 @@ export default function AcceptInvitePage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const strength = evaluatePassword(password);
-  const ok = displayName && strength.score >= 4;
+  function validate(): string | null {
+    if (!displayName.trim()) return "Enter your name.";
+    if (password.length < 12) return "Password must be at least 12 characters.";
+    const strength = evaluatePassword(password);
+    if (strength.score < 3) {
+      return `Password is too weak. Missing: ${strength.reasons.join(", ")}.`;
+    }
+    return null;
+  }
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (!ok) return;
+    const validation = validate();
+    if (validation) {
+      setError(validation);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -79,7 +90,7 @@ export default function AcceptInvitePage() {
         )}
         <button
           type="submit"
-          disabled={!ok || busy}
+          disabled={busy}
           className="w-full rounded-control bg-gov-blue px-4 py-2.5 text-sm font-semibold text-white shadow-card transition-colors hover:bg-navy disabled:opacity-60"
         >
           {busy ? "Accepting…" : "Accept invitation"}

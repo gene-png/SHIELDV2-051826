@@ -97,12 +97,24 @@ End-to-end + accessibility tests land with §13 of the execution plan.
 ## Documentation
 
 - [`docs/execution-plan.md`](docs/execution-plan.md) — single dependency-ordered build plan
+- [`docs/qa-checklist.md`](docs/qa-checklist.md) — **must run before claiming a feature is done**
 - [`docs/architecture.md`](docs/architecture.md) — system architecture
 - [`docs/data-model.md`](docs/data-model.md) — schema overview
 - [`docs/security.md`](docs/security.md) — security posture, redaction, audit
 - [`docs/admin-guide.md`](docs/admin-guide.md) — Kentro consultant guide
 - [`docs/client-guide.md`](docs/client-guide.md) — client-facing guide
 - [`docs/runbooks/`](docs/runbooks/) — operational runbooks (incident, backup, key rotation, etc.)
+
+## Development discipline
+
+Every feature commit must:
+
+1. **Code-trace** the full call path (UI handler → API client → router → service → DB → response → render). Note silent-failure points (disabled buttons, swallowed errors, early-return guards).
+2. **Smoke test** by running the relevant section of [`docs/qa-checklist.md`](docs/qa-checklist.md).
+3. **Unit-test** at minimum the route surface — `docker compose exec api pytest -m unit` must stay green; new endpoints must show up in `apps/api/tests/unit/test_routes_smoke.py`.
+4. **Linkrot search** — every `<Link href=…>` must resolve to a real route. Commands at the bottom of the QA checklist.
+
+If a feature can't pass all four, the commit message says "partial" — not "done".
 
 ## Risk acceptance log
 
