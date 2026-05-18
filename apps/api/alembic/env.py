@@ -13,6 +13,8 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from app.models import Base  # registers every table on Base.metadata
+
 config = context.config
 
 if config.config_file_name is not None:
@@ -21,7 +23,7 @@ if config.config_file_name is not None:
 if os.environ.get("DATABASE_URL"):
     config.set_main_option("sqlalchemy.url", os.environ["DATABASE_URL"])
 
-target_metadata = None  # Populated when models land in §3.1.
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:

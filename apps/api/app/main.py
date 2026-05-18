@@ -13,6 +13,9 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app.settings import get_settings
+from app.spine.access import AccessDenied
+from app.spine.correlation import CorrelationIdMiddleware
+from app.spine.logging import get_logger
 
 
 def _enforce_no_debug_outside_loopback() -> None:
@@ -28,6 +31,7 @@ def _enforce_no_debug_outside_loopback() -> None:
 
 _enforce_no_debug_outside_loopback()
 settings = get_settings()
+log = get_logger("shield.api")
 
 app = FastAPI(
     title="SHIELD by Kentro — API",
@@ -38,11 +42,28 @@ app = FastAPI(
     openapi_url="/openapi.json",
 )
 
+app.add_middleware(CorrelationIdMiddleware)
+
+
+@app.exception_handler(AccessDenied)
+async def _access_denied_handler(request: Request, exc: AccessDenied) -> JSONResponse:
+    """Treat IDOR as 404 to avoid leaking object existence (Master Spec §4.1)."""
+    return JSONResponse(
+        status_code=404,
+        content={
+            "error": "not_found",
+            "correlation_id": getattr(request.state, "correlation_id", ""),
+        },
+    )
+
 
 @app.exception_handler(Exception)
 async def _generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Global exception handler — never leaks stack traces. Master Spec §4.1."""
-    correlation_id = request.headers.get("x-correlation-id", "")
+    correlation_id = getattr(request.state, "correlation_id", "") or request.headers.get(
+        "x-correlation-id", ""
+    )
+    log.exception("unhandled_exception", correlation_id=correlation_id, path=request.url.path)
     return JSONResponse(
         status_code=500,
         content={
@@ -55,7 +76,6 @@ async def _generic_exception_handler(request: Request, exc: Exception) -> JSONRe
 
 @app.get("/health", tags=["meta"])
 async def health() -> dict[str, str]:
-    """Liveness probe. Lightweight — no DB hit. Use `/ready` for readiness."""
     return {"status": "ok", "service": "shield-api", "environment": settings.environment}
 
 

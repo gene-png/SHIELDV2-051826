@@ -1,0 +1,7 @@
+{
+  "name": "@shield/design-system",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.ts",
+  "types": "index.ts"
+}
