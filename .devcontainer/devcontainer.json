@@ -4,6 +4,8 @@
   "service": "web",
   "workspaceFolder": "/workspace",
   "shutdownAction": "stopCompose",
+  "runServices": ["web", "api", "worker", "db", "redis", "minio", "keycloak", "mailhog"],
+  "remoteUser": "appuser",
 
   "customizations": {
     "vscode": {
@@ -35,6 +37,11 @@
         },
         "[typescriptreact]": {
           "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "files.watcherExclude": {
+          "**/node_modules/**": true,
+          "**/.next/**": true,
+          "**/.venv/**": true
         }
       }
     }
@@ -45,16 +52,3 @@
   },
 
   "forwardPorts": [3000, 8000, 5432, 6379, 8080, 9000, 9001, 8025],
-  "portsAttributes": {
-    "3000":  { "label": "web (Next.js)" },
-    "8000":  { "label": "api (FastAPI)" },
-    "5432":  { "label": "postgres" },
-    "6379":  { "label": "redis" },
-    "8080":  { "label": "keycloak" },
-    "9000":  { "label": "minio (S3 api)" },
-    "9001":  { "label": "minio (console)" },
-    "8025":  { "label": "mailhog (UI)" }
-  },
-
-  "postCreateCommand": "bash scripts/devcontainer-post-create.sh"
-}
